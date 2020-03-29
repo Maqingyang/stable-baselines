@@ -101,6 +101,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False, 
     true_rewards = np.zeros(horizon, 'float32')
     rewards = np.zeros(horizon, 'float32')
     vpreds = np.zeros(horizon, 'float32')
+    nextvpreds = np.zeros(horizon, 'float32')
     episode_starts = np.zeros(horizon, 'bool')
     dones = np.zeros(horizon, 'bool')
     actions = np.array([action for _ in range(horizon)])
@@ -116,6 +117,9 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False, 
         # before returning segment [0, T-1] so we get the correct
         # terminal value
         if step > 0 and step % horizon == 0:
+            last_vpred = policy.value(observation.reshape(-1, *observation.shape), states, done)
+            last_vpred = last_vpred[0]
+            nextvpreds[i] = last_vpred
             callback.on_rollout_end()
             yield {
                     "observations": observations,
@@ -124,8 +128,9 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False, 
                     "episode_starts": episode_starts,
                     "true_rewards": true_rewards,
                     "vpred": vpreds,
-                    "actions": actions,
+                    "nextvpreds": nextvpreds,
                     "nextvpred": vpred[0] * (1 - episode_start),
+                    "actions": actions,
                     "ep_rets": ep_rets,
                     "ep_lens": ep_lens,
                     "ep_true_rets": ep_true_rets,
@@ -141,12 +146,16 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False, 
             # Reset current iteration length
             current_it_len = 0
             callback.on_rollout_start()
+
         i = step % horizon
         observations[i] = observation
         vpreds[i] = vpred[0]
         actions[i] = action[0]
         episode_starts[i] = episode_start
 
+        if (not episode_start) and (i > 0):
+            nextvpreds[i - 1] = vpred[0]
+            
         clipped_action = action
         # Clip the actions to avoid out of bound error
         if isinstance(env.action_space, gym.spaces.Box):
@@ -169,8 +178,9 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False, 
                     "episode_starts": episode_starts,
                     "true_rewards": true_rewards,
                     "vpred": vpreds,
-                    "actions": actions,
+                    "nextvpreds": nextvpreds,
                     "nextvpred": vpred[0] * (1 - episode_start),
+                    "actions": actions,
                     "ep_rets": ep_rets,
                     "ep_lens": ep_lens,
                     "ep_true_rets": ep_true_rets,
@@ -189,6 +199,10 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False, 
         current_it_len += 1
         current_ep_len += 1
         if done:
+            last_vpred = policy.value(observation.reshape(-1, *observation.shape), states, done)
+            last_vpred = last_vpred[0]
+            nextvpreds[i] = last_vpred
+
             # Retrieve unnormalized reward if using Monitor wrapper
             maybe_ep_info = info.get('episode')
             if maybe_ep_info is not None:
