@@ -1,14 +1,13 @@
-##
-
+#%%
 import gym
 
 from stable_baselines import GAIL, SAC
 from stable_baselines.gail import ExpertDataset, generate_expert_traj
-
+#%%
 # Generate expert trajectories (train expert)
 model = SAC('MlpPolicy', 'Pendulum-v0', verbose=1)
 generate_expert_traj(model, 'expert_pendulum', n_timesteps=100, n_episodes=10)
-
+#%%
 # Load the expert dataset
 dataset = ExpertDataset(expert_path='expert_pendulum.npz', traj_limitation=10, verbose=1)
 
@@ -18,7 +17,7 @@ model.learn(total_timesteps=1000)
 model.save("gail_pendulum")
 
 del model # remove to demonstrate saving and loading
-
+#%%
 model = GAIL.load("gail_pendulum")
 
 env = gym.make('Pendulum-v0')
@@ -27,3 +26,5 @@ while True:
   action, _states = model.predict(obs)
   obs, rewards, dones, info = env.step(action)
   env.render()
+
+# %%

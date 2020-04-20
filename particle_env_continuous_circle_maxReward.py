@@ -136,7 +136,7 @@ class PrticleEnv(gym.Env):
         velocity_reward = max(per_vec[-1], 0)
         
         # velocity_reward = min(math.exp(velocity)-1,10)
-        self.velocity_reward = velocity_reward
+        self.velocity_reward = velocity_reward/np.linalg.norm(pos)
 
 
         total_reward = velocity_reward
