@@ -46,7 +46,8 @@ class PrticleEnv(gym.Env):
         self.shift_reward = 0
         self.velocity_reward = 0
         self.smallest_dist = 0
-
+        self.trace = []
+        self.prev_x,self.prev_y = 0, 0
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
@@ -71,7 +72,8 @@ class PrticleEnv(gym.Env):
         y_dot = y_dot + self.tau*y_acc
         self.state = np.array([x,x_dot,y,y_dot])
         self.curr_timestep += 1
-
+        if abs(x-self.prev_x)+abs(y-self.prev_y) > 0.2:
+            self.trace.append([x,y])
 
 
 
@@ -130,6 +132,9 @@ class PrticleEnv(gym.Env):
         self.init_dis = math.sqrt((x-self.x_goal)**2+(y-self.y_goal)**2)
         self.curr_timestep = 0
         self.smallest_dist = self.init_dis
+        self.trace = []
+        self.prev_x,self.prev_y = x,y
+        
         return self.state  
 
 
@@ -167,6 +172,7 @@ class PrticleEnv(gym.Env):
             cart.add_attr(self.carttrans)
             #Add Geometric cart
             self.viewer.add_geom(cart)
+            
 
 
         if self.state is None: return None
@@ -176,8 +182,15 @@ class PrticleEnv(gym.Env):
         carty = y*scale+screen_height/2.0 # MIDDLE OF CART
             #set the translation attribute of cart
         self.carttrans.set_translation(cartx, carty)
+        
         # self.poletrans.set_rotation(-x[2])
-
+        #Add trace
+        if len(self.trace) > 0:
+            shift_traj = [(x*scale+screen_width/2.0,y*scale+screen_height/2.0) for (x,y) in self.trace]
+            # self.traj = rendering.make_polyline(shift_traj)
+            # self.traj.set_linewidth(10)
+            # self.viewer.add_onetime(self.traj)
+            self.viewer.draw_polyline(shift_traj,linewidth=10,color=(1,0,0))
         return self.viewer.render(return_rgb_array = mode=='rgb_array')
 
     def close(self):
