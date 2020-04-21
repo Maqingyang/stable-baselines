@@ -84,7 +84,7 @@ class PrticleEnv(gym.Env):
             # reward = -1
 
         distance = math.sqrt((x-self.x_goal)**2+(y-self.y_goal)**2)
-        reward = self.beta*min(0, self.smallest_dist-distance)/self.init_dis
+        reward = self.beta*max(0, self.smallest_dist-distance)/self.init_dis
         # reward = self.beta*math.exp(-self.alpha*(distance-self.win_thre))
         self.smallest_dist = min(self.smallest_dist, distance)
         
