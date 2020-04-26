@@ -10,7 +10,7 @@ class PrticleEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, alpha=10, beta=1, win_thre=1, max_timestep=-1,for_circle_traj = False):
+    def __init__(self, alpha=10, beta=1, win_thre=1, max_timestep=-1):
         super(PrticleEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
@@ -43,7 +43,6 @@ class PrticleEnv(gym.Env):
         self.curr_timestep = 0
         self.max_timestep = max_timestep
         self.init_dis = 0
-        self.for_circle_traj = for_circle_traj
         self.shift_reward = 0
         self.velocity_reward = 0
 
@@ -91,9 +90,6 @@ class PrticleEnv(gym.Env):
             reward = -1*self.beta
             done = True
 
-        if self.for_circle_traj:
-            reward, _done = self.get_reward(x,y,x_dot,y_dot)
-            done = done or _done
 
 
         return self.state, reward, done, {}
@@ -119,29 +115,6 @@ class PrticleEnv(gym.Env):
 
     #     return total_reward, done
 
-    def get_reward(self,x,y,x_dot,y_dot):
-        # reward for keep the same dist from the goal
-        distance = math.sqrt((x-self.x_goal)**2+(y-self.y_goal)**2)
-        shift_from_init_dis = math.sqrt((distance - self.init_dis)**2)
-        if shift_from_init_dis > 1:
-            done = True
-        else:
-            done = False
-        shift_reward = 10.*math.exp(-shift_from_init_dis)
-        self.shift_reward = shift_reward
-        # reward for higher speed
-        pos = np.array([x,y,0])
-        vec = np.array([x_dot,y_dot,0])
-        per_vec = np.cross(pos,vec)/np.linalg.norm(pos)
-        velocity_reward = max(per_vec[-1], 0)
-        
-        # velocity_reward = min(math.exp(velocity)-1,10)
-        self.velocity_reward = velocity_reward
-
-
-        total_reward = velocity_reward
-
-        return total_reward, done
 
     def reset(self):
         # Reset the state of the environment to an initial state

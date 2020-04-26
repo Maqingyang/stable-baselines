@@ -116,6 +116,7 @@ class TransitionClassifier(object):
                 tf.get_variable_scope().reuse_variables()
 
             if self.normalize:
+                assert obs_ph.shape != acs_ph.shape, "Does the actions replaced by prev obs?"
                 with tf.variable_scope("obfilter"):
                     self.obs_rms = RunningMeanStd(shape=self.observation_shape)
                 obs = (obs_ph - self.obs_rms.mean) / self.obs_rms.std
