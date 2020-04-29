@@ -249,7 +249,87 @@ class ExpertDatasetConsecutive(ExpertDataset):
         if self.verbose >= 1:
             self.log_info()
 
+class ExpertDatasetConsecutiveManual(ExpertDataset):
+    """
+    replace action with prev obs
+    use manually generated data
+    """
+    def __init__(self, expert_path=None, traj_data=None, train_fraction=0.7, batch_size=64,
+                 traj_limitation=-1, randomize=True, verbose=1, sequential_preprocessing=False):
+        if traj_data is not None and expert_path is not None:
+            raise ValueError("Cannot specify both 'traj_data' and 'expert_path'")
+        if traj_data is None and expert_path is None:
+            raise ValueError("Must specify one of 'traj_data' or 'expert_path'")
+        if traj_data is None:
+            traj_data = np.load(expert_path, allow_pickle=True)
 
+        if verbose > 0:
+            for key, val in traj_data.items():
+                print(key, val.shape)
+
+        # # Array of bool where episode_starts[i] = True for each new episode
+        # episode_starts = traj_data['episode_starts']
+
+        traj_limit_idx = len(traj_data['obs'])
+
+        # if traj_limitation > 0:
+        #     n_episodes = 0
+        #     # Retrieve the index corresponding
+        #     # to the traj_limitation trajectory
+        #     for idx, episode_start in enumerate(episode_starts):
+        #         n_episodes += int(episode_start)
+        #         if n_episodes == (traj_limitation + 1):
+        #             traj_limit_idx = idx - 1
+
+        observations = traj_data['obs'][:traj_limit_idx]
+        # actions = traj_data['actions'][:traj_limit_idx]
+        actions = np.concatenate([observations[0:1],observations[:traj_limit_idx-1]],axis=0)
+        # obs, actions: shape (N * L, ) + S
+        # where N = # episodes, L = episode length
+        # and S is the environment observation/action space.
+        # S = (1, ) for discrete space
+        # Flatten to (N * L, prod(S))
+        if len(observations.shape) > 2:
+            observations = np.reshape(observations, [-1, np.prod(observations.shape[1:])])
+        if len(actions.shape) > 2:
+            actions = np.reshape(actions, [-1, np.prod(actions.shape[1:])])
+
+        indices = np.random.permutation(len(observations)).astype(np.int64)
+
+        # Train/Validation split when using behavior cloning
+        train_indices = indices[:int(train_fraction * len(indices))]
+        val_indices = indices[int(train_fraction * len(indices)):]
+
+        assert len(train_indices) > 0, "No sample for the training set"
+        assert len(val_indices) > 0, "No sample for the validation set"
+
+        self.observations = observations
+        self.actions = actions
+
+        # self.returns = traj_data['episode_returns'][:traj_limit_idx]
+        # self.avg_ret = sum(self.returns) / len(self.returns)
+        self.avg_ret = 0
+        # self.std_ret = np.std(np.array(self.returns))
+        self.std_ret = 0
+        self.verbose = verbose
+
+        assert len(self.observations) == len(self.actions), "The number of actions and observations differ " \
+                                                            "please check your expert dataset"
+        self.num_traj = -1
+        self.num_transition = len(self.observations)
+        self.randomize = randomize
+        self.sequential_preprocessing = sequential_preprocessing
+
+        self.dataloader = None
+        self.train_loader = DataLoader(train_indices, self.observations, self.actions, batch_size,
+                                       shuffle=self.randomize, start_process=False,
+                                       sequential=sequential_preprocessing)
+        self.val_loader = DataLoader(val_indices, self.observations, self.actions, batch_size,
+                                     shuffle=self.randomize, start_process=False,
+                                     sequential=sequential_preprocessing)
+
+        if self.verbose >= 1:
+            self.log_info()
 
 class DataLoader(object):
     """

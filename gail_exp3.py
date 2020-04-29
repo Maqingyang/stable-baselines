@@ -21,10 +21,10 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 ###############################################
 from particle_env_continuous_closer import PrticleEnv
 from stable_baselines.gail.gail_useTrueReward_consecutiveTimeStep import GAIL
-env = DummyVecEnv([lambda: PrticleEnv(alpha=1,beta=10,win_thre=1, max_timestep=256)])
+env = DummyVecEnv([lambda: PrticleEnv(alpha=1,beta=100,win_thre=1, max_timestep=256)])
 save_name = "model/gail_exp3"
 epochs = 10
-timestep_per_epoch = int(1e5)
+timestep_per_epoch = int(1e6)
 expert_n_episodes = 100
 ############################################
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     print("\n...GAIL learning\n")
     for idx in range(epochs):
         model.learn(total_timesteps=timestep_per_epoch, reset_num_timesteps=False)
-        model.save(save_name+"_%03dk" %((idx+1)*timestep_per_epoch/1e3))
+        model.save(save_name+"_%03dM" %((idx+1)*timestep_per_epoch/1e6))
 
     print("...finish\n")
 

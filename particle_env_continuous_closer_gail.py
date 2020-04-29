@@ -1,3 +1,9 @@
+""" 
+add sample_circle_traj
+fix the start point and the goal
+""" 
+
+
 import gym
 from gym.utils import seeding
 from gym import spaces, logger
@@ -14,7 +20,7 @@ class PrticleEnv(gym.Env):
         super(PrticleEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
-        self.mass = 1.
+        self.mass = 0.1
         self.force_mag = 10.
         self.X_lim = 10.
         self.Y_lim = 10.
@@ -32,7 +38,8 @@ class PrticleEnv(gym.Env):
                          self.force_mag],
                         dtype=np.float32)
         self.action_space = spaces.Box(low=-action_limit,high=action_limit,dtype=np.float32)
-        self.x_goal = 0
+        self.R = 4 # for circle traj
+        self.x_goal = self.R
         self.y_goal = 0
         self.seed()
         self.state = None
@@ -127,8 +134,6 @@ class PrticleEnv(gym.Env):
     def reset(self):
         # Reset the state of the environment to an initial state
         self.state = np.zeros(4,dtype=np.float32)
-        self.state[0] = np.random.uniform(-self.X_lim,self.X_lim)/1.5
-        self.state[2] = np.random.uniform(-self.Y_lim,self.Y_lim)/1.5
         x, x_dot, y, y_dot= self.state
         self.init_dis = math.sqrt((x-self.x_goal)**2+(y-self.y_goal)**2)
         self.curr_timestep = 0
@@ -198,4 +203,26 @@ class PrticleEnv(gym.Env):
         if self.viewer:
             self.viewer.close()
             self.viewer = None
+
+    def sample_circle_traj(self):
+        sampled_circle_traj = []
+        for denominator in range(10):
+            tau = self.tau
+            R = self.R
+            force = self.force_mag
+            mass = self.mass
+            v_max = np.sqrt(force*R/mass)
+            delta_s_max = v_max*tau
+            max_delta_theta = delta_s_max/R/2 / (denominator+1)**2
+            theta_dot = -max_delta_theta/tau
+
+            sampled_theta = np.linspace(0,np.pi/2,int(np.pi/max_delta_theta))[::-1]
+            x_sampled = 2*R*np.cos(sampled_theta)**2
+            y_sampled = 2*R*np.cos(sampled_theta)*np.sin(sampled_theta)
+            x_dot_sampled = -2*R*np.sin(2*sampled_theta)*theta_dot
+            y_dot_sampled = 4*R*np.cos(2*sampled_theta)*theta_dot
+
+            sampled_circle_traj += [(x,y,x_dot,y_dot) for x,y,x_dot,y_dot in zip(x_sampled,y_sampled,x_dot_sampled,y_dot_sampled)]
+        return np.array(sampled_circle_traj)
+
 
