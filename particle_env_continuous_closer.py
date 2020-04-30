@@ -48,7 +48,7 @@ class PrticleEnv(gym.Env):
         self.smallest_dist = 0
         self.trace = []
         self.prev_x,self.prev_y = 0, 0
-    
+        
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
