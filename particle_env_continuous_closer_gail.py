@@ -20,7 +20,7 @@ class PrticleEnv(gym.Env):
         super(PrticleEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
-        self.mass = 0.1
+        self.mass = 1
         self.force_mag = 10.
         self.X_lim = 10.
         self.Y_lim = 10.
@@ -206,7 +206,8 @@ class PrticleEnv(gym.Env):
 
     def sample_circle_traj(self):
         sampled_circle_traj = []
-        for denominator in range(10):
+        for denominator in range(1):
+            denominator = 10
             tau = self.tau
             R = self.R
             force = self.force_mag

@@ -24,51 +24,51 @@ import gym
 import numpy as np
 
 
-# def add_vtarg_and_adv(seg, gamma, lam):
-#     """
-#     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
-
-#     :param seg: (dict) the current segment of the trajectory (see traj_segment_generator return for more information)
-#     :param gamma: (float) Discount factor
-#     :param lam: (float) GAE factor
-#     """
-#     # last element is only used for last vtarg, but we already zeroed it if last new = 1
-#     episode_starts = np.append(seg["episode_starts"], False)
-#     vpred = np.append(seg["vpred"], seg["nextvpred"])
-#     rew_len = len(seg["rewards"])
-#     seg["adv"] = np.empty(rew_len, 'float32')
-#     rewards = seg["rewards"]
-#     lastgaelam = 0
-#     for step in reversed(range(rew_len)):
-#         nonterminal = 1 - float(episode_starts[step + 1])
-#         delta = rewards[step] + gamma * vpred[step + 1] * nonterminal - vpred[step]
-#         seg["adv"][step] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
-#     seg["tdlamret"] = seg["adv"] + seg["vpred"]
-
 def add_vtarg_and_adv(seg, gamma, lam):
-  """
-  Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
+    """
+    Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
 
-  :param seg: (dict) the current segment of the trajectory (see traj_segment_generator return for more information)
-  :param gamma: (float) Discount factor
-  :param lam: (float) GAE factor
-  """
-  # last element is only used for last vtarg, but we already zeroed it if last new = 1
-  episode_starts = np.append(seg["episode_starts"], False)
-  vpred = seg["vpred"]
-  nexvpreds = seg["nextvpreds"]
-  rew_len = len(seg["rewards"])
-  seg["adv"] = np.empty(rew_len, 'float32')
-  ##!!add true reward!!##
-  rewards = seg["rewards"] + seg["true_rewards"]
-  lastgaelam = 0
-  for step in reversed(range(rew_len)):
-    nonterminal = 1 - float(episode_starts[step + 1])
-    delta = rewards[step] + gamma * nexvpreds[step] - vpred[step]
-    seg["adv"][step] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
-  seg["tdlamret"] = seg["adv"] + seg["vpred"]
+    :param seg: (dict) the current segment of the trajectory (see traj_segment_generator return for more information)
+    :param gamma: (float) Discount factor
+    :param lam: (float) GAE factor
+    """
+    # last element is only used for last vtarg, but we already zeroed it if last new = 1
+    episode_starts = np.append(seg["episode_starts"], False)
+    vpred = np.append(seg["vpred"], seg["nextvpred"])
+    rew_len = len(seg["rewards"])
+    seg["adv"] = np.empty(rew_len, 'float32')
+    rewards = seg["rewards"]
+    lastgaelam = 0
+    for step in reversed(range(rew_len)):
+        nonterminal = 1 - float(episode_starts[step + 1])
+        delta = rewards[step] + gamma * vpred[step + 1] * nonterminal - vpred[step]
+        seg["adv"][step] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
+    seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
-  return
+# def add_vtarg_and_adv(seg, gamma, lam):
+#   """
+#   Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
+
+#   :param seg: (dict) the current segment of the trajectory (see traj_segment_generator return for more information)
+#   :param gamma: (float) Discount factor
+#   :param lam: (float) GAE factor
+#   """
+#   # last element is only used for last vtarg, but we already zeroed it if last new = 1
+#   episode_starts = np.append(seg["episode_starts"], False)
+#   vpred = seg["vpred"]
+#   nexvpreds = seg["nextvpreds"]
+#   rew_len = len(seg["rewards"])
+#   seg["adv"] = np.empty(rew_len, 'float32')
+#   ##!!add true reward!!##
+#   rewards = seg["rewards"] + seg["true_rewards"]
+#   lastgaelam = 0
+#   for step in reversed(range(rew_len)):
+#     nonterminal = 1 - float(episode_starts[step + 1])
+#     delta = rewards[step] + gamma * nexvpreds[step] - vpred[step]
+#     seg["adv"][step] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
+#   seg["tdlamret"] = seg["adv"] + seg["vpred"]
+
+#   return
 
 class TRPO(ActorCriticRLModel):
     """
@@ -119,7 +119,8 @@ class TRPO(ActorCriticRLModel):
         self.full_tensorboard_log = full_tensorboard_log
 
         # GAIL Params
-        self.hidden_size_adversary = 100
+        # self.hidden_size_adversary = 100
+        self.hidden_size_adversary = 512
         self.adversary_entcoeff = 1e-3
         self.expert_dataset = None
         self.g_step = 1
@@ -509,6 +510,8 @@ class TRPO(ActorCriticRLModel):
                                                                       batch_size=batch_size,
                                                                       shuffle=True):
                             ob_expert, prev_obs_expert = self.expert_dataset.get_next_batch()
+                            # print((ob_batch, prev_obs_batch))
+                            # print((ob_expert, prev_obs_expert))
                             # update running mean/std for reward_giver
                             if self.reward_giver.normalize:
                                 self.reward_giver.obs_rms.update(np.concatenate((ob_batch, ob_expert), 0))
@@ -524,11 +527,14 @@ class TRPO(ActorCriticRLModel):
                             d_losses.append(newlosses)
                         logger.log(fmt_row(13, np.mean(d_losses, axis=0)))
 
+
                         # lr: lengths and rewards
                         lr_local = (seg["ep_lens"], seg["ep_rets"], seg["ep_true_rets"])  # local values
                         list_lr_pairs = MPI.COMM_WORLD.allgather(lr_local)  # list of tuples
                         lens, rews, true_rets = map(flatten_lists, zip(*list_lr_pairs))
                         true_reward_buffer.extend(true_rets)
+                        reward_buffer.extend(rews)
+
                     else:
                         # lr: lengths and rewards
                         lr_local = (seg["ep_lens"], seg["ep_rets"])  # local values

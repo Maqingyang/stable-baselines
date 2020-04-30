@@ -85,6 +85,7 @@ class TransitionClassifier(object):
         generator_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=generator_logits,
                                                                  labels=tf.zeros_like(generator_logits))
         generator_loss = tf.reduce_mean(generator_loss)
+
         expert_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=expert_logits, labels=tf.ones_like(expert_logits))
         expert_loss = tf.reduce_mean(expert_loss)
         # Build entropy loss
@@ -101,6 +102,12 @@ class TransitionClassifier(object):
         self.lossandgrad = tf_util.function(
             [self.generator_obs_ph, self.generator_acs_ph, self.expert_obs_ph, self.expert_acs_ph],
             self.losses + [tf_util.flatgrad(self.total_loss, var_list)])
+
+        with tf.variable_scope("d_loss", reuse=False):
+            for loss_name, d_loss in zip(self.loss_name,self.losses):
+                # print(loss_name,d_loss)
+                # tf.Print(d_loss,[d_loss])
+                tf.summary.scalar(loss_name, d_loss)
 
     def build_graph(self, obs_ph, acs_ph, reuse=False):
         """
@@ -130,9 +137,13 @@ class TransitionClassifier(object):
                 actions_ph = acs_ph
 
             _input = tf.concat([obs, actions_ph], axis=1)  # concatenate the two input -> form a transition
-            p_h1 = tf.contrib.layers.fully_connected(_input, self.hidden_size, activation_fn=tf.nn.tanh)
-            p_h2 = tf.contrib.layers.fully_connected(p_h1, self.hidden_size, activation_fn=tf.nn.tanh)
+            # p_h1 = tf.contrib.layers.fully_connected(_input, self.hidden_size, activation_fn=tf.nn.tanh)
+            # p_h2 = tf.contrib.layers.fully_connected(p_h1, self.hidden_size, activation_fn=tf.nn.tanh)
+            p_h1 = tf.contrib.layers.fully_connected(_input, self.hidden_size, activation_fn=tf.nn.relu)
+            p_h2 = tf.contrib.layers.fully_connected(p_h1, self.hidden_size, activation_fn=tf.nn.relu)
             logits = tf.contrib.layers.fully_connected(p_h2, 1, activation_fn=tf.identity)
+
+
         return logits
 
     def get_trainable_variables(self):
